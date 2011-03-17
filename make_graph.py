@@ -180,7 +180,7 @@ def plot_data(places, d_min, d_max, dest_dir):
     p.stdin.write('set xrange ["2011/03/14-12:00":]\n')
     p.stdin.write('set format x "%d %H:%M"\n')
     p.stdin.write('set xtics 43200\n')
-    p.stdin.write('set ylabel "µSv/h"\n')
+    p.stdin.write('set ylabel "Microsievert/hour"\n')
     p.stdin.write('set title "Radiation levels in Ibaraki Prefecture (Updated '
             'at %s)"\n' % (time.strftime('%Y/%m/%d %H:%M ' + time.tzname[0],
                 time.localtime()),))
