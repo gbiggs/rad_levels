@@ -113,6 +113,44 @@ def get_kek():
     return times, data
 
 
+def get_aist():
+    url = 'http://www.aist.go.jp/taisaku/ja/measurement/all_results.html'
+    try:
+        html = urllib2.urlopen(url).read()
+    except urllib2.HTMLError, e:
+        print >>sys.stderr, 'Error reading AIST data:', e
+        return None
+    except httplib.BadStatusLine:
+        print >>sys.stderr, 'Error reading AIST data: bad status line'
+        return None
+    table = unicode(re.search(u'<table class="ment".*?>(.*?)</table>', html,
+            re.U | re.S).group(1), 'shift-jis')
+    rows = re.findall(u'<tr>(.*?)</tr>', table, re.U | re.S)
+    times = []
+    data = []
+    current_day = None
+    # Skip the header row
+    for r in rows[1:]:
+        cells = re.findall(u'<td.*?>(.*?)</td>', r, re.U | re.S)
+        offset = 0
+        if len(cells) == 3:
+            # Got a new day
+            m = re.match(u'(?P<mon>\d{1,2})月(?P<day>\d{1,2})日', cells[0],
+                    re.U | re.S)
+            current_day = (m.group('mon'), m.group('day'))
+            offset = 1
+        m = re.match(u'\s*(?P<hour>\d{1,2}):(?P<min>\d{1,2})',
+                cells[0 + offset], re.U | re.S)
+        value = cells[1 + offset]
+        times.append('2011/%s/%s-%s:%s' %
+                (current_day[0], current_day[1], m.group('hour'),
+                    m.group('min')))
+        data.append(value)
+    times.reverse()
+    data.reverse()
+    return times, data
+
+
 def add_column(levels, new_data):
     times = new_data[0]
     data = new_data[1]
@@ -142,7 +180,7 @@ def plot_data(places, d_min, d_max, dest_dir):
     p.stdin.write('set xrange ["2011/03/14-12:00":]\n')
     p.stdin.write('set format x "%d %H:%M"\n')
     p.stdin.write('set xtics 43200\n')
-    p.stdin.write('set ylabel "Microsievert/hr"\n')
+    p.stdin.write('set ylabel "µSv/h"\n')
     p.stdin.write('set title "Radiation levels in Ibaraki Prefecture (Updated '
             'at %s)"\n' % (time.strftime('%Y/%m/%d %H:%M ' + time.tzname[0],
                 time.localtime()),))
@@ -179,6 +217,11 @@ def main(argv):
 
     places.append('KEK')
     add_column(levels, get_kek())
+
+    aist_data = get_aist()
+    if aist_data:
+        places.append('AIST')
+        add_column(levels, aist_data)
 
     f = open('levels.dat', 'w')
     for ii in range(len(levels[0])):
