@@ -39,8 +39,6 @@ def main(argv):
 
     latest_url = get_latest_update()
     previous_url = get_previous_url()
-    print latest_url
-    print previous_url
 
     if latest_url != previous_url:
         xls = urllib2.urlopen(latest_url).read()
