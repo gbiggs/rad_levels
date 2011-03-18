@@ -141,7 +141,7 @@ def get_aist():
             offset = 1
         m = re.match(u'\s*(?P<hour>\d{1,2}):(?P<min>\d{1,2})',
                 cells[0 + offset], re.U | re.S)
-        value = cells[1 + offset]
+        value = str(float(cells[1 + offset]) + 0.06)
         times.append('2011/%s/%s-%s:%s' %
                 (current_day[0], current_day[1], m.group('hour'),
                     m.group('min')))
