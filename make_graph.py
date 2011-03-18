@@ -169,7 +169,7 @@ def add_column(levels, new_data):
         ii += 1
 
 
-def plot_data(places, d_min, d_max, dest_dir):
+def plot_data(places, dest_dir):
     p = subprocess.Popen(['gnuplot', '-p'], shell=True, stdin=subprocess.PIPE)
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
@@ -232,10 +232,6 @@ def main(argv):
         f.write('\n')
     f.close()
 
-    #data_min = min(min(levels[1]), min(levels[2]), min(levels[3]))
-    data_min = 0
-    data_max = max(max(levels[1]), max(levels[2]), max(levels[3]))
-
     # Transliterate the places
     t_places = []
     for p in places:
@@ -247,7 +243,7 @@ def main(argv):
             t_places.append('Daigo Town')
         else:
             t_places.append(p)
-    plot_data(tuple(t_places), data_min, data_max, dest_dir)
+    plot_data(tuple(t_places), dest_dir)
 
 
 if __name__ == '__main__':
