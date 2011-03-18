@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 
+import datetime
 import os.path
 import re
 import subprocess
@@ -9,27 +10,128 @@ import time
 import urllib2
 
 
-def process_cells(cells, dest, current_day):
+class DataPoint(object):
+    def __init__(self, timestamp, values):
+        self._ts = timestamp
+        self._vals = values
+
+    def __repr__(self):
+        return 'DataPoint(datetime.datetime(%04d, %02d, %02d, %02d, %02d), %s)' % \
+                (self._ts.year, self._ts.month, self._ts.day, self._ts.hour,
+                        self._ts.minute, repr(self._vals))
+
+    def __str__(self):
+        res = '%04d/%02d/%02d-%02d:%02d\t' % (self._ts.year, self._ts.month,
+                self._ts.day, self._ts.hour, self._ts.minute)
+        for v in self._vals:
+            res += '%s\t' % (str(v),)
+        return res[:-1]
+
+    def __len__(self):
+        return len(self._vals)
+
+    def __getitem__(self, index):
+        if index >= len(self._vals) or index < -len(self._vals):
+            raise IndexError
+        return self._vals[index]
+
+    def __setitem__(self, index, value):
+        if index < 0:
+            index = len(self._vals) + index
+        for ii in range(len(self._vals), index + 1):
+            self._vals.append('-')
+        self._vals[index] = value
+
+    def __lt__(self, other):
+        return self._ts < other.timestamp
+
+    def __le__(self, other):
+        return self._ts <= other.timestamp
+
+    def __eq__(self, other):
+        return self._ts == other.timestamp
+
+    def __ne__(self, other):
+        return self._ts != other.timestamp
+
+    def __gt__(self, other):
+        return self._ts > other.timestamp
+
+    def __ge__(self, other):
+        return self._ts >= other.timestamp
+
+    @property
+    def timestamp(self):
+        return self._ts
+
+    def ensure_length(self, min_len):
+        while len(self._vals) < min_len:
+            self._vals.append('-')
+
+
+class TimeSeries(object):
+    def __init__(self):
+        self._dps = [] # This should really be a binary tree
+        self._col_count = 0
+
+    def __str__(self):
+        res = ''
+        for dp in self._dps:
+            res += '%s\n' % (str(dp),)
+        return res[:-1]
+
+    def __len__(self):
+        return len(self._dps)
+
+    def num_cols(self):
+        '''Returns the number of values in a data point.'''
+        if not self._dps:
+            return 0
+        return len(self._dps[0])
+
+    def ts_index(self, timestamp):
+        for ii, dp in enumerate(self._dps):
+            if dp.timestamp == timestamp:
+                return ii
+        return None
+
+    def set_value(self, timestamp, col, value):
+        if self._col_count < col + 1:
+            for dp in self._dps:
+                dp.ensure_length(col + 1)
+            self._col_count = col + 1
+        ind = self.ts_index(timestamp)
+        if not ind:
+            self._dps.append(DataPoint(timestamp, []))
+            self._dps[-1][col] = value
+        else:
+            self._dps[ind][col] = value
+        self._dps.sort()
+
+    def sort(self):
+        self._dps.sort()
+
+
+def process_cells(cells, dest, current_day, expected_len):
     # Time stamp
     if cells[0] == u'〜':
         # No data
-        return
+        return current_day, dest
     # Get a day/time match
     m = re.match(u'((?P<day>\\d{1,2})日\s?)?(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})',
             cells[0], re.U)
     if m.group('day'):
         current_day = int(m.group('day'))
     day = current_day
-    dest[0].append('2011/03/%02d-%02d:%02d' % (day, int(m.group('hour')), int(m.group('min'))))
+    ts = datetime.datetime(2011, 3, day, int(m.group('hour')), int(m.group('min')))
     for ii, c in enumerate(cells[1:]):
         try:
             val = float(c)
         except ValueError:
             # No data
-            dest[ii + 1].append('')
             continue
-        dest[ii + 1].append(c)
-    return current_day
+        dest.set_value(ts, ii, val)
+    return current_day, dest
 
 
 def get_latest_update():
@@ -40,8 +142,8 @@ def get_latest_update():
     return m.groups()
 
 
-def get_levels(url_suffix):
-    levels = []
+def get_levels(url_suffix, dest):
+    places = []
     num_places = 0
     current_day = None
     url = 'http://www.pref.ibaraki.jp/important/20110311eq/' + url_suffix
@@ -51,14 +153,13 @@ def get_levels(url_suffix):
             html, re.U | re.S)
     for t in tables:
         rows = re.findall(u'<tr>(.*?)</tr>', t, re.U | re.S)
-        # Grab the place names
-        places = re.findall(u'<th.*?>.*?（(\w+?)）.*?</th>', rows[0],
-                re.U | re.S)
         if num_places == 0:
+            # Grab the place names
+            places = re.findall(u'<th.*?>.*?（(\w+?)）.*?</th>', rows[0],
+                    re.U | re.S)
             # Only need to do this once
             num_places = len(places) / 2
-            levels = [[] for ii in range(num_places + 1)] # +1 for timestamp
-        places = places[:num_places]
+            places = places[:num_places]
 
         # The rows may break in the middle, just for that extra dash of
         # excitement.
@@ -76,7 +177,8 @@ def get_levels(url_suffix):
                 # life difficult
                 for cells in l_cells + r_cells:
                     # Process the cells into timestamps and numbers
-                    current_day = process_cells(cells, levels, current_day)
+                    current_day, dest = process_cells(cells, dest, current_day,
+                            num_places)
                 l_cells = []
                 r_cells = []
                 page_break = True
@@ -85,11 +187,12 @@ def get_levels(url_suffix):
             r_cells.append(cells[num_places + 1:])
         for cells in l_cells + r_cells:
             # Process the cells into timestamps and numbers
-            current_day = process_cells(cells, levels, current_day)
-    return places, levels
+            current_day, dest = process_cells(cells, dest, current_day,
+                    num_places)
+    return places, dest
 
 
-def get_kek():
+def get_kek(dest):
     url = 'http://rcwww.kek.jp/norm/dose.html'
     html = urllib2.urlopen(url).read()
     value = re.search(r'<b>\s*([\d.]+)', html).group(1)
@@ -101,19 +204,18 @@ def get_kek():
         int(time.group('min')), value))
     f.close()
 
+    kek_col = dest.num_cols()
     f = open('kek.dat', 'r')
-    times = []
-    data = []
     for l in f:
         l = l.strip().split('\t')
         if len(l) == 2:
-            times.append(l[0])
-            data.append(l[1])
+            ts = datetime.datetime.strptime(l[0], '%Y/%m/%d-%H:%M')
+            dest.set_value(ts, kek_col, float(l[1]))
     f.close()
-    return times, data
+    return dest
 
 
-def get_aist():
+def get_aist(places, dest):
     url = 'http://www.aist.go.jp/taisaku/ja/measurement/all_results.html'
     try:
         html = urllib2.urlopen(url).read()
@@ -123,32 +225,64 @@ def get_aist():
     except httplib.BadStatusLine:
         print >>sys.stderr, 'Error reading AIST data: bad status line'
         return None
+    places.append('AIST (3F)')
+    places.append('AIST (Carpark)')
+    aist_col1 = dest.num_cols()
+    aist_col2 = aist_col1 + 1
+
     table = unicode(re.search(u'<table class="ment".*?>(.*?)</table>', html,
             re.U | re.S).group(1), 'shift-jis')
     rows = re.findall(u'<tr>(.*?)</tr>', table, re.U | re.S)
-    times = []
-    data = []
     current_day = None
-    # Skip the header row
-    for r in rows[1:]:
-        cells = re.findall(u'<td.*?>(.*?)</td>', r, re.U | re.S)
-        offset = 0
-        if len(cells) == 3:
+    ALL = 0
+    COL1 = 1
+    COL2 = 2
+    mode = ALL
+    # Skip the header rows
+    for r in rows[2:]:
+        cells = re.findall(u'<td ?(.*?>.*?)</td>', r, re.U | re.S)
+        m = re.match(u'.*?(?P<mon>\d{1,2})月(?P<day>\d{1,2})日',
+                cells[0], re.U | re.S)
+        if m:
             # Got a new day
-            m = re.match(u'(?P<mon>\d{1,2})月(?P<day>\d{1,2})日', cells[0],
-                    re.U | re.S)
-            current_day = (m.group('mon'), m.group('day'))
-            offset = 1
-        m = re.match(u'\s*(?P<hour>\d{1,2}):(?P<min>\d{1,2})',
-                cells[0 + offset], re.U | re.S)
-        value = str(float(cells[1 + offset]) + 0.06)
-        times.append('2011/%s/%s-%s:%s' %
-                (current_day[0], current_day[1], m.group('hour'),
-                    m.group('min')))
-        data.append(value)
-    times.reverse()
-    data.reverse()
-    return times, data
+            current_day = (int(m.group('mon')), int(m.group('day')))
+            cells = cells[1:]
+        m = re.match(u'.*?\s*(?P<hour>\d{1,2}):(?P<min>\d{1,2})', cells[0],
+                re.U | re.S)
+        ts = datetime.datetime(2011, current_day[0], current_day[1],
+                int(m.group('hour')), int(m.group('min')))
+        cells = cells[1:]
+        # Now things get complicated: because they used row-spanning cells we
+        # need to track where the span is.
+        if len(cells) == 2:
+            # Possibly have all data - check the cells to be sure
+            if re.match(r'width="160"', cells[0]):
+                # First column is going away
+                mode = COL2
+                # Grab the 2nd column
+                val = re.match(r'.*?>(\d+\.?\d*)', cells[1]).group(1)
+                dest.set_value(ts, aist_col2, float(val) + 0.06)
+            elif re.match(r'width="160"', cells[1]):
+                # Second column is going away
+                mode = COL1
+                # Grab the 1st column
+                val = re.match(r'.*?>(\d+\.?\d*)', cells[0]).group(1)
+                dest.set_value(ts, aist_col1, float(val) + 0.06)
+            else:
+                # Have all data
+                mode = ALL
+                val = re.match(r'.*?>(\d+\.?\d*)', cells[0]).group(1)
+                dest.set_value(ts, aist_col1, float(val) + 0.06)
+                val = re.match(r'.*?>(\d+\.?\d*)', cells[1]).group(1)
+                dest.set_value(ts, aist_col2, float(val) + 0.06)
+        else:
+            # Have one set of data
+            val = re.match(r'.*?>(\d+\.?\d*)', cells[0]).group(1)
+            if mode == COL1:
+                dest.set_value(ts, aist_col1, float(val) + 0.06)
+            else:
+                dest.set_value(ts, aist_col2, float(val) + 0.06)
+    return places, dest
 
 
 def add_column(levels, new_data):
@@ -160,10 +294,13 @@ def add_column(levels, new_data):
         while ii < len(levels[0]) and ts > levels[0][ii]:
             levels[-1].append('')
             ii += 1
-        levels[0].insert(ii, ts)
-        for kk in range(1, len(levels) - 1):
-            levels[kk].insert(ii, '-')
-        levels[-1].insert(ii, data[jj])
+        if ts == levels[0][ii]:
+            levels[-1].insert(ii, data[jj])
+        else:
+            levels[0].insert(ii, ts)
+            for kk in range(1, len(levels) - 1):
+                levels[kk].insert(ii, '-')
+            levels[-1].insert(ii, data[jj])
     while ii < len(levels[0]):
         levels[-1].append('')
         ii += 1
@@ -210,26 +347,20 @@ def main(argv):
     if (len(argv) > 1):
         dest_dir = argv[1]
 
+    data = TimeSeries()
+
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
-    places, levels = get_levels(url_suffix)
+    places, data = get_levels(url_suffix, data)
 
     places.append('KEK')
-    add_column(levels, get_kek())
+    data = get_kek(data)
 
-    aist_data = get_aist()
-    if aist_data:
-        places.append('AIST')
-        add_column(levels, aist_data)
+    places, data = get_aist(places, data)
 
     f = open('levels.dat', 'w')
-    for ii in range(len(levels[0])):
-        f.write(levels[0][ii].encode('utf-8'))
-        for jj in range(1, len(levels)):
-            f.write('\t')
-            f.write(levels[jj][ii].encode('utf-8'))
-        f.write('\n')
+    f.write(str(data))
     f.close()
 
     # Transliterate the places
