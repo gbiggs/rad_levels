@@ -23,7 +23,7 @@ def get_latest_update():
 
 def get_previous_url():
     try:
-        f = open('fukushima_url.cache', 'r')
+        f = open('fukushima_graph_url.cache', 'r')
     except IOError:
         return ''
     url = f.read()
@@ -32,7 +32,7 @@ def get_previous_url():
 
 
 def write_previous_url(url):
-    f = open('fukushima_url.cache', 'w')
+    f = open('fukushima_graph_url.cache', 'w')
     f.write(url)
     f.close()
 
