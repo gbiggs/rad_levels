@@ -105,7 +105,7 @@ def plot_data(places, dest_dir):
     p.stdin.write('set xlabel "Time (Day Hour:Minute)"\n')
     p.stdin.write('set timefmt "%Y/%m/%d-%H:%M"\n')
     p.stdin.write('set xdata time\n')
-    p.stdin.write('set xrange ["2011/03/18-06:00":]\n')
+    p.stdin.write('set xrange ["2011/03/15-21:00":]\n')
     p.stdin.write('set format x "%d %H:%M"\n')
     p.stdin.write('set xtics 43200\n')
     p.stdin.write('set ylabel "Microsievert/hour"\n')
