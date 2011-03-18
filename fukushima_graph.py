@@ -47,20 +47,6 @@ def get_latest_pdf(url):
 
 
 def update_data():
-    f = open(LATEST_TXT, 'r')
-    raw = unicode(f.read(), 'utf-8')
-    f.close()
-
-    data_start = re.search(u'(?P<mon>\\d{1,2})月(?P<day>\\d{1,2})日\s+\\d{1,2}:\\d{1,2}',
-            raw, re.U | re.S)
-    data_break = re.search(u'（\\w）', raw, re.U)
-    data_end = re.search(u'測定装置', raw, re.U)
-
-    # First group includes start to get the time, 2nd for ease of coding
-    rows = (raw[data_start.start():data_break.start()],
-            raw[data_break.start():data_end.start()])
-
-    data = []
     f = open('fukushima.dat', 'r')
     lines = f.readlines()
     if lines:
@@ -68,16 +54,33 @@ def update_data():
     else:
         last_time = ''
     f.close()
+
+    f = open(LATEST_TXT, 'r')
+    raw = unicode(f.read(), 'utf-8')
+    f.close()
+
+    pre_line = re.search(r'\d{3}\s\d{1,2}:\d{1,2}', raw)
+    data_lines = [l.strip() for l in raw[pre_line.start():].split('\n')[1:3]]
+
+    month = data_lines[0][0]
+    day = data_lines[0][1:3]
+    data_lines[0] = data_lines[0][4:]
     f = open('fukushima.dat', 'a')
-    for r in rows:
-        cells = r.strip().split('\n\n')
-        ts = cells[1].split(':')
-        ts_str = '2011/%s/%s-%s:%s' % (data_start.group('mon'),
-            data_start.group('day'), ts[0], ts[1])
+    for l in data_lines:
+        cells = [m[0] \
+                for m in re.findall(r'(\d{1,2}(:|.)\d{1,2})? ?', l)]
+        if len(cells) > 14:
+            # Hack because we can't use a variable-length lookbehind asssertion
+            # in the regex, so we almost always get an empty extra cell
+            cells = cells[:14]
+        while len(cells) < 14:
+            cells.append('')
+        ts = cells[0].split(':')
+        ts_str = '2011/%s/%s-%s:%s' % (month, day, ts[0], ts[1])
         if ts_str > last_time:
             data_str = ''
-            for c in cells[2:]:
-                if c.strip() == u'ー':
+            for c in cells[1:]:
+                if c.strip() == '':
                     data_str += '-\t'
                     continue
                 try:
@@ -133,7 +136,6 @@ def main(argv):
 
     latest_url = get_latest_update()
     previous_url = get_previous_url()
-
     if latest_url != previous_url:
         get_latest_pdf(latest_url)
         write_previous_url(latest_url)
