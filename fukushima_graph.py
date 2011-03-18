@@ -43,7 +43,7 @@ def get_latest_pdf(url):
     f = open(LATEST_PDF, 'wb')
     f.write(pdf)
     f.close()
-    p = subprocess.Popen(['pdftotext', LATEST_PDF, LATEST_TXT])
+    p = subprocess.Popen(['pdftotext', '-layout', '-raw', LATEST_PDF, LATEST_TXT])
     p.communicate()
 
 
@@ -146,7 +146,7 @@ def main(argv):
     update_data()
 
     places = ['Fukushima City', 'Koriyama City', 'Shirakawa City',
-            'Aizu-Wakamatsu', 'Aizu Town South', 'Soma City South',
+            'Aizu-Wakamatsu', 'Minami Aizu', 'Minami Soma City',
             'Iwaki City', 'Tamagawa', 'Iitate', 'Kawauchi',
             'Central Iwaki City', 'Tamura City Funehiki', 'Tamura City Tokiwa']
     plot_data(tuple(places), dest_dir)
