@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 
+import datetime
 import os.path
 import re
 import subprocess
@@ -50,9 +51,10 @@ def update_data():
     f = open('fukushima.dat', 'r')
     lines = f.readlines()
     if lines:
-        last_time = lines[-1].split('\t')[0]
+        last_time_str = lines[-1].split('\t')[0]
+        last_time = datetime.datetime.strptime(last_time_str, '%Y/%m/%d-%H:%M')
     else:
-        last_time = ''
+        last_time = datetime.datetime(1970, 1, 1)
     f.close()
 
     f = open(LATEST_TXT, 'r')
@@ -76,8 +78,9 @@ def update_data():
         while len(cells) < 14:
             cells.append('')
         ts = cells[0].split(':')
-        ts_str = '2011/%s/%s-%s:%s' % (month, day, ts[0], ts[1])
-        if ts_str > last_time:
+        this_time = datetime.datetime(2011, int(month), int(day), int(ts[0]),
+                int(ts[1]))
+        if this_time > last_time:
             data_str = ''
             for c in cells[1:]:
                 if c.strip() == '':
@@ -89,7 +92,8 @@ def update_data():
                     data_str += '-\t'
                     continue
                 data_str += c.strip() + '\t'
-            f.write('%s\t%s\n' % (ts_str, data_str[:-1]))
+            f.write('2011/%s/%s-%s:%s\t%s\n' % (month, day, ts[0], ts[1],
+                data_str[:-1]))
     f.close()
 
 
