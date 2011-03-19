@@ -256,13 +256,13 @@ def get_aist(places, dest):
         # need to track where the span is.
         if len(cells) == 2:
             # Possibly have all data - check the cells to be sure
-            if re.match(r'width="160"', cells[0]):
+            if cells[0].find('rowspan') >= 0:
                 # First column is going away
                 mode = COL2
                 # Grab the 2nd column
                 val = re.match(r'.*?>(\d+\.?\d*)', cells[1]).group(1)
                 dest.set_value(ts, aist_col2, float(val) + 0.06)
-            elif re.match(r'width="160"', cells[1]):
+            elif cells[1].find('rowspan') >= 0:
                 # Second column is going away
                 mode = COL1
                 # Grab the 1st column
