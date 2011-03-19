@@ -140,7 +140,7 @@ def process_cells(cells, dest, current_day, prev_ts, expected_len):
 
 def get_latest_update():
     url = 'http://www.pref.ibaraki.jp/important/20110311eq/index.html'
-    url_finder = u'href="(?P<url>\\d{8}_\\d{2}/index.html)">茨城県の放射線量の状況　(?P<month>\\d)月(?P<day>\\d{2})日?　(?P<hour>\\d{1,2})時(?P<min>\\d{1,2})分'
+    url_finder = u'href="(?P<url>\\d{8}_\\d{2}.+?/index.html)">.?茨城県\\w?の放射線量の状況'
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     m = re.search(url_finder, html, re.U)
     print m.groups()
