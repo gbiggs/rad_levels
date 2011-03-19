@@ -100,7 +100,11 @@ class TimeSeries(object):
             for dp in self._dps:
                 dp.ensure_length(col + 1)
             self._col_count = col + 1
-        ind = self.ts_index(timestamp)
+        if len(self._dps) > 0 and timestamp > self._dps[-1].timestamp:
+            # Optimisation for data that is coming in in increasing time order
+            ind = None
+        else:
+            ind = self.ts_index(timestamp)
         if not ind:
             self._dps.append(DataPoint(timestamp, []))
             self._dps[-1][col] = value
@@ -143,7 +147,6 @@ def get_latest_update():
     url_finder = u'href="(?P<url>\\d{8}_\\d{2}.+?/index.html)">.?茨城県\\w?の放射線量の状況'
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     m = re.search(url_finder, html, re.U)
-    print m.groups()
     return m.groups()
 
 
