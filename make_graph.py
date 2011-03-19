@@ -112,11 +112,11 @@ class TimeSeries(object):
         self._dps.sort()
 
 
-def process_cells(cells, dest, current_day, expected_len):
+def process_cells(cells, dest, current_day, prev_ts, expected_len):
     # Time stamp
     if cells[0] == u'〜':
         # No data
-        return current_day, dest
+        return current_day, prev_ts, dest
     # Get a day/time match
     m = re.match(u'((?P<day>\\d{1,2})日\s?)?(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})',
             cells[0], re.U)
@@ -124,6 +124,10 @@ def process_cells(cells, dest, current_day, expected_len):
         current_day = int(m.group('day'))
     day = current_day
     ts = datetime.datetime(2011, 3, day, int(m.group('hour')), int(m.group('min')))
+    if ts < prev_ts:
+        # Someone forgot to increment the day at midnight
+        ts = ts.replace(day=ts.day + 1)
+        current_day += 1
     for ii, c in enumerate(cells[1:]):
         try:
             val = float(c)
@@ -131,7 +135,7 @@ def process_cells(cells, dest, current_day, expected_len):
             # No data
             continue
         dest.set_value(ts, ii, val)
-    return current_day, dest
+    return current_day, ts, dest
 
 
 def get_latest_update():
@@ -139,6 +143,7 @@ def get_latest_update():
     url_finder = u'href="(?P<url>\\d{8}_\\d{2}/index.html)">茨城県の放射線量の状況　(?P<month>\\d)月(?P<day>\\d{2})日?　(?P<hour>\\d{1,2})時(?P<min>\\d{1,2})分'
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     m = re.search(url_finder, html, re.U)
+    print m.groups()
     return m.groups()
 
 
@@ -146,6 +151,7 @@ def get_levels(url_suffix, dest):
     places = []
     num_places = 0
     current_day = None
+    prev_ts = datetime.datetime(2000, 1, 1)
     url = 'http://www.pref.ibaraki.jp/important/20110311eq/' + url_suffix
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     # Get the tables dealing with Ibaraki
@@ -177,8 +183,8 @@ def get_levels(url_suffix, dest):
                 # life difficult
                 for cells in l_cells + r_cells:
                     # Process the cells into timestamps and numbers
-                    current_day, dest = process_cells(cells, dest, current_day,
-                            num_places)
+                    current_day, prev_ts, dest = process_cells(cells, dest,
+                            current_day, prev_ts, num_places)
                 l_cells = []
                 r_cells = []
                 page_break = True
@@ -187,8 +193,8 @@ def get_levels(url_suffix, dest):
             r_cells.append(cells[num_places + 1:])
         for cells in l_cells + r_cells:
             # Process the cells into timestamps and numbers
-            current_day, dest = process_cells(cells, dest, current_day,
-                    num_places)
+            current_day, prev_ts, dest = process_cells(cells, dest,
+                    current_day, prev_ts, num_places)
     return places, dest
 
 
