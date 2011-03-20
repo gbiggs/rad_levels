@@ -367,7 +367,6 @@ def main(argv):
         dest_dir = argv[1]
 
     data = load_cache()
-    print len(data)
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
@@ -375,7 +374,6 @@ def main(argv):
     places.append('KEK')
     data = get_kek(data)
     places, data = get_aist(places, data)
-    print len(data)
     save_cache(data)
 
     # Transliterate the places
