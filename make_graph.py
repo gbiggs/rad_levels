@@ -125,7 +125,8 @@ def load_cache():
         cells = l.split('\t')
         ts = datetime.datetime.strptime(cells[0], '%Y/%m/%d-%H:%M')
         for ii, c in enumerate(cells[1:]):
-            data.set_value(ts, ii, c.strip())
+            if c.strip() != '-':
+                data.set_value(ts, ii, c.strip())
     f.close()
     return data
 
@@ -233,7 +234,6 @@ def get_kek(dest):
     return dest
 
 
-
 def get_aist(places, dest):
     url = 'http://www.aist.go.jp/taisaku/ja/measurement/all_results.html'
     try:
@@ -330,12 +330,12 @@ def plot_data(places, dest_dir):
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
             (os.path.join(dest_dir, 'ibaraki_levels.png',)))
-    p.stdin.write('set xlabel "Time (Day Hour:Minute)"\n')
+    p.stdin.write('set xlabel "Day"\n')
     p.stdin.write('set timefmt "%Y/%m/%d-%H:%M"\n')
     p.stdin.write('set xdata time\n')
     p.stdin.write('set xrange ["2011/03/14-12:00":]\n')
-    p.stdin.write('set format x "%d %H:%M"\n')
-    p.stdin.write('set xtics 43200\n')
+    p.stdin.write('set format x "%d"\n')
+    p.stdin.write('set xtics 86400\n')
     p.stdin.write('set ylabel "Microsievert/hour"\n')
     p.stdin.write('set title "Radiation levels in Ibaraki Prefecture (Updated '
             'at %s)"\n' % (time.strftime('%Y/%m/%d %H:%M ' + time.tzname[0],
@@ -367,6 +367,7 @@ def main(argv):
         dest_dir = argv[1]
 
     data = load_cache()
+    print len(data)
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
@@ -374,7 +375,7 @@ def main(argv):
     places.append('KEK')
     data = get_kek(data)
     places, data = get_aist(places, data)
-    print data
+    print len(data)
     save_cache(data)
 
     # Transliterate the places
