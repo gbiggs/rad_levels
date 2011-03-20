@@ -108,12 +108,32 @@ class TimeSeries(object):
         if not ind:
             self._dps.append(DataPoint(timestamp, []))
             self._dps[-1][col] = value
+            self._dps[-1].ensure_length(self._col_count)
         else:
             self._dps[ind][col] = value
+            self._dps[ind].ensure_length(self._col_count)
         self._dps.sort()
 
     def sort(self):
         self._dps.sort()
+
+
+def load_cache():
+    data = TimeSeries()
+    f = open('ibaraki.dat', 'r')
+    for l in f:
+        cells = l.split('\t')
+        ts = datetime.datetime.strptime(cells[0], '%Y/%m/%d-%H:%M')
+        for ii, c in enumerate(cells[1:]):
+            data.set_value(ts, ii, c.strip())
+    f.close()
+    return data
+
+
+def save_cache(data):
+    f = open('ibaraki.dat', 'w')
+    f.write(str(data))
+    f.close()
 
 
 def process_cells(cells, dest, current_day, prev_ts, expected_len):
@@ -207,21 +227,11 @@ def get_kek(dest):
     value = re.search(r'<b>\s*([\d.]+)', html).group(1)
     time = re.search(r'\((?P<mon>\d{1,2})/(?P<day>\d{1,2}) '
             '(?P<hour>\d{1,2}):(?P<min>\d{1,2})', html)
-    f = open('kek.dat', 'a')
-    f.write('2011/%02d/%02d-%02d:%02d\t%s\n' % (int(time.group('mon')),
+    dest.set_value(datetime.datetime(2011, int(time.group('mon')),
         int(time.group('day')), int(time.group('hour')),
-        int(time.group('min')), value))
-    f.close()
-
-    kek_col = dest.num_cols()
-    f = open('kek.dat', 'r')
-    for l in f:
-        l = l.strip().split('\t')
-        if len(l) == 2:
-            ts = datetime.datetime.strptime(l[0], '%Y/%m/%d-%H:%M')
-            dest.set_value(ts, kek_col, float(l[1]))
-    f.close()
+        int(time.group('min'))), 3, float(value))
     return dest
+
 
 
 def get_aist(places, dest):
@@ -236,7 +246,7 @@ def get_aist(places, dest):
         return None
     places.append('AIST (3F)')
     places.append('AIST (Carpark)')
-    aist_col1 = dest.num_cols()
+    aist_col1 = 4
     aist_col2 = aist_col1 + 1
 
     table = unicode(re.search(u'<table class="ment".*?>(.*?)</table>', html,
@@ -332,7 +342,7 @@ def plot_data(places, dest_dir):
                 time.localtime()),))
     plot_cmd = 'plot '
     for ii, place in enumerate(places):
-        plot_cmd += '"levels.dat" u 1:%d title "%s" w l, ' % (ii + 2, place)
+        plot_cmd += '"ibaraki.dat" u 1:%d title "%s" w l, ' % (ii + 2, place)
     plot_cmd = plot_cmd[:-2] + '\n'
     p.stdin.write(plot_cmd)
     p.stdin.write('set logscale y\n')
@@ -356,21 +366,16 @@ def main(argv):
     if (len(argv) > 1):
         dest_dir = argv[1]
 
-    data = TimeSeries()
-
+    data = load_cache()
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
     places, data = get_levels(url_suffix, data)
-
     places.append('KEK')
     data = get_kek(data)
-
     places, data = get_aist(places, data)
-
-    f = open('levels.dat', 'w')
-    f.write(str(data))
-    f.close()
+    print data
+    save_cache(data)
 
     # Transliterate the places
     t_places = []
