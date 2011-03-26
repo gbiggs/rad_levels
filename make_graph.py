@@ -7,7 +7,11 @@ import re
 import subprocess
 import sys
 import time
+import traceback
 import urllib2
+
+
+CACHE='ibaraki.dat'
 
 
 class DataPoint(object):
@@ -120,7 +124,7 @@ class TimeSeries(object):
 
 def load_cache():
     data = TimeSeries()
-    f = open('ibaraki.dat', 'r')
+    f = open(CACHE, 'r')
     for l in f:
         cells = l.split('\t')
         ts = datetime.datetime.strptime(cells[0], '%Y/%m/%d-%H:%M')
@@ -132,7 +136,7 @@ def load_cache():
 
 
 def save_cache(data):
-    f = open('ibaraki.dat', 'w')
+    f = open(CACHE, 'w')
     f.write(str(data))
     f.close()
 
@@ -290,10 +294,12 @@ def get_aist(places, dest):
             else:
                 # Have all data
                 mode = ALL
-                val = re.match(r'.*?>(\d+\.?\d*)', cells[0]).group(1)
-                dest.set_value(ts, aist_col1, float(val) + 0.06)
-                val = re.match(r'.*?>(\d+\.?\d*)', cells[1]).group(1)
-                dest.set_value(ts, aist_col2, float(val) + 0.06)
+                m = re.match(r'.*?>(\d+\.?\d*)', cells[0])
+                if m:
+                    dest.set_value(ts, aist_col1, float(m.group(1)) + 0.06)
+                m = re.match(r'.*?>(\d+\.?\d*)', cells[1])
+                if m:
+                    dest.set_value(ts, aist_col2, float(m.group(1)) + 0.06)
         else:
             # Have one set of data
             val = re.match(r'.*?>(\d+\.?\d*)', cells[0]).group(1)
@@ -342,7 +348,7 @@ def plot_data(places, dest_dir):
                 time.localtime()),))
     plot_cmd = 'plot '
     for ii, place in enumerate(places):
-        plot_cmd += '"ibaraki.dat" u 1:%d title "%s" w l, ' % (ii + 2, place)
+        plot_cmd += '"%s" u 1:%d title "%s" w l, ' % (CACHE, ii + 2, place)
     plot_cmd = plot_cmd[:-2] + '\n'
     p.stdin.write(plot_cmd)
     p.stdin.write('set logscale y\n')
@@ -362,18 +368,29 @@ def plot_data(places, dest_dir):
 
 
 def main(argv):
+    global CACHE
     dest_dir = '/home/killbots/killbots.net/random/'
     if (len(argv) > 1):
         dest_dir = argv[1]
+    CACHE = os.path.join(dest_dir, CACHE)
 
     data = load_cache()
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
-    places, data = get_levels(url_suffix, data)
-    places.append('KEK')
-    data = get_kek(data)
-    places, data = get_aist(places, data)
+    try:
+        places, data = get_levels(url_suffix, data)
+    except:
+        traceback.print_exc()
+    try:
+        data = get_kek(data)
+        places.append('KEK')
+    except:
+        traceback.print_exc()
+    try:
+        places, data = get_aist(places, data)
+    except:
+        traceback.print_exc()
     save_cache(data)
 
     # Transliterate the places
