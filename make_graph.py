@@ -124,6 +124,8 @@ class TimeSeries(object):
 
 def load_cache():
     data = TimeSeries()
+    if not os.path.exists(CACHE):
+        return data
     f = open(CACHE, 'r')
     for l in f:
         cells = l.split('\t')
