@@ -151,6 +151,10 @@ def process_cells(cells, dest, current_day, prev_ts):
     # Get a day/time match
     m = re.match(u'((?P<day>\\d{1,2})日\s?)?(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})',
             cells[0], re.U)
+    if not m:
+        print ('Warning: Failed to read date from Ibaraki cell "' + cells[0] +
+            '"')
+        return current_day, prev_ts, dest
     if m.group('day'):
         current_day = int(m.group('day'))
     day = current_day
