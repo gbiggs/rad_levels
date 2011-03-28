@@ -143,7 +143,7 @@ def save_cache(data):
     f.close()
 
 
-def process_cells(cells, dest, current_day, prev_ts, expected_len):
+def process_cells(cells, dest, current_day, prev_ts):
     # Time stamp
     if cells[0] == u'〜':
         # No data
@@ -178,7 +178,6 @@ def get_latest_update():
 
 
 def get_levels(url_suffix, dest):
-    places = []
     num_places = 0
     current_day = None
     prev_ts = datetime.datetime(2000, 1, 1)
@@ -195,7 +194,6 @@ def get_levels(url_suffix, dest):
                     re.U | re.S)
             # Only need to do this once
             num_places = len(places) / 2
-            places = places[:num_places]
 
         # The rows may break in the middle, just for that extra dash of
         # excitement.
@@ -214,7 +212,7 @@ def get_levels(url_suffix, dest):
                 for cells in l_cells + r_cells:
                     # Process the cells into timestamps and numbers
                     current_day, prev_ts, dest = process_cells(cells, dest,
-                            current_day, prev_ts, num_places)
+                            current_day, prev_ts)
                 l_cells = []
                 r_cells = []
                 page_break = True
@@ -224,8 +222,8 @@ def get_levels(url_suffix, dest):
         for cells in l_cells + r_cells:
             # Process the cells into timestamps and numbers
             current_day, prev_ts, dest = process_cells(cells, dest,
-                    current_day, prev_ts, num_places)
-    return places, dest
+                    current_day, prev_ts)
+    return dest
 
 
 def get_kek(dest):
@@ -240,7 +238,7 @@ def get_kek(dest):
     return dest
 
 
-def get_aist(places, dest):
+def get_aist(dest):
     url = 'http://www.aist.go.jp/taisaku/ja/measurement/all_results.html'
     try:
         html = urllib2.urlopen(url).read()
@@ -250,8 +248,6 @@ def get_aist(places, dest):
     except httplib.BadStatusLine:
         print >>sys.stderr, 'Error reading AIST data: bad status line'
         return None
-    places.append('AIST (3F)')
-    places.append('AIST (Carpark)')
     aist_col1 = 4
     aist_col2 = aist_col1 + 1
 
@@ -309,7 +305,7 @@ def get_aist(places, dest):
                 dest.set_value(ts, aist_col1, float(val) + 0.06)
             else:
                 dest.set_value(ts, aist_col2, float(val) + 0.06)
-    return places, dest
+    return dest
 
 
 def add_column(levels, new_data):
@@ -334,6 +330,7 @@ def add_column(levels, new_data):
 
 
 def plot_data(places, dest_dir):
+    print CACHE
     p = subprocess.Popen(['gnuplot', '-p'], shell=True, stdin=subprocess.PIPE)
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
@@ -380,33 +377,22 @@ def main(argv):
     latest_update = get_latest_update()
     url_suffix = latest_update[0]
     time = latest_update[1:]
+    places = ['Kita Ibaraki City', 'Takahagi City', 'Daigo Town', 'KEK',
+            'AIST (3F)', 'AIST (Carpark)']
     try:
-        places, data = get_levels(url_suffix, data)
+        data = get_levels(url_suffix, data)
     except:
         traceback.print_exc()
     try:
         data = get_kek(data)
-        places.append('KEK')
     except:
         traceback.print_exc()
     try:
-        places, data = get_aist(places, data)
+        data = get_aist(data)
     except:
         traceback.print_exc()
     save_cache(data)
-
-    # Transliterate the places
-    t_places = []
-    for p in places:
-        if p == u'北茨城市':
-            t_places.append('Kita Ibaraki City')
-        elif p == u'高萩市':
-            t_places.append('Takahagi City')
-        elif p == u'大子町':
-            t_places.append('Daigo Town')
-        else:
-            t_places.append(p)
-    plot_data(tuple(t_places), dest_dir)
+    plot_data(places, dest_dir)
 
 
 if __name__ == '__main__':
