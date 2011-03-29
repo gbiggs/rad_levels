@@ -5,3 +5,4 @@
 *.txt
 *.cache
 *.bak
+*.pyc
