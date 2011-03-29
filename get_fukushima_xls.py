@@ -49,7 +49,7 @@ def main(argv):
         dest = 'fukushima_%s' % (time.strftime('%d_%H:%M_' + time.tzname[0],
             time.localtime()),) + ext
         f = open(os.path.join(dest_dir, dest), 'wb')
-        f.write(xls)
+        f.write(data)
         f.close()
         write_previous_url(latest_url)
 
