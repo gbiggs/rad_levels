@@ -3,15 +3,21 @@
 
 import datetime
 import os.path
+import pdfminer.pdfinterp
+import pdfminer.converter
 import re
+import StringIO
 import subprocess
 import sys
 import time
 import urllib2
 
+import cache
+
 
 LATEST_PDF='fukushima_latest.pdf'
 LATEST_TXT='fukushima_latest.txt'
+CACHE='fukushima.dat'
 
 
 def get_latest_update():
@@ -43,31 +49,28 @@ def get_latest_pdf(url):
     f = open(LATEST_PDF, 'wb')
     f.write(pdf)
     f.close()
-    p = subprocess.Popen(['pdftotext', '-layout', '-raw', LATEST_PDF, LATEST_TXT])
+    p = subprocess.Popen(['pdf2txt.py', '-o', LATEST_TXT, LATEST_PDF])
     p.communicate()
 
 
 def update_data():
-    f = open('fukushima.dat', 'r')
-    lines = f.readlines()
-    if lines:
-        last_time_str = lines[-1].split('\t')[0]
-        last_time = datetime.datetime.strptime(last_time_str, '%Y/%m/%d-%H:%M')
-    else:
-        last_time = datetime.datetime(1970, 1, 1)
-    f.close()
+    data = cache.load_cache(CACHE)
 
     f = open(LATEST_TXT, 'r')
     raw = unicode(f.read(), 'utf-8')
     f.close()
+    print raw
 
-    pre_line = re.search(r'\d{3}\s\d{1,2}:\d{1,2}', raw)
+    data = re.search(u'(?P<mon>\\d{1,2})月(?P<day>\\d{1,2})日\\s*（\\w）\\s*(\\d{1,2}:\\d{1,2})?\\s*(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})\s*(?P<cells>.*?)測定装置',
+            raw, re.S | re.U)
+    print data.groups()
     data_lines = [l.strip() for l in raw[pre_line.start():].split('\n')[1:3]]
+    print 'data_lines', data_lines
 
     month = data_lines[0][0]
     day = data_lines[0][1:3]
     data_lines[0] = data_lines[0][4:]
-    f = open('fukushima.dat', 'a')
+
     for l in data_lines:
         cells = [m[0] \
                 for m in re.findall(r'(\d{1,2}(:|.)\d{1,2})? ?', l)]
@@ -80,21 +83,17 @@ def update_data():
         ts = cells[0].split(':')
         this_time = datetime.datetime(2011, int(month), int(day), int(ts[0]),
                 int(ts[1]))
-        if this_time > last_time:
-            data_str = ''
-            for c in cells[1:]:
-                if c.strip() == '':
-                    data_str += '-\t'
-                    continue
-                try:
-                    float(c.strip())
-                except ValueError:
-                    data_str += '-\t'
-                    continue
-                data_str += c.strip() + '\t'
-            f.write('2011/%s/%s-%s:%s\t%s\n' % (month, day, ts[0], ts[1],
-                data_str[:-1]))
-    f.close()
+        for ii, c in enumerate(cells[1:]):
+            if c.strip() == '':
+                data_str += '-\t'
+                continue
+            try:
+                float(c.strip())
+            except ValueError:
+                data_str += '-\t'
+                continue
+            data.set_value(this_time, ii, c.strip())
+    cache.save_cache(data, CACHE)
 
 
 def plot_data(places, dest_dir):
@@ -134,16 +133,18 @@ def plot_data(places, dest_dir):
 
 
 def main(argv):
+    global CACHE
     dest_dir = '/home/killbots/killbots.net/random'
     if len(argv) > 1:
         dest_dir = argv[1]
+    CACHE = os.path.join(dest_dir, CACHE)
 
     latest_url = get_latest_update()
     previous_url = get_previous_url()
     if latest_url != previous_url:
         get_latest_pdf(latest_url)
-        write_previous_url(latest_url)
-    update_data()
+        #write_previous_url(latest_url)
+        update_data()
 
     places = ['Fukushima City', 'Koriyama City', 'Shirakawa City',
             'Aizu-Wakamatsu', 'Minami Aizu', 'Minami Soma City',
