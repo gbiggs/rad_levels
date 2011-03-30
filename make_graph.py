@@ -25,8 +25,8 @@ def process_cells(cells, dest, current_day, prev_ts):
     m = re.match(u'((?P<day>\\d{1,2})日\s?)?(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})',
             cells[0], re.U)
     if not m:
-        print ('Warning: Failed to read date from Ibaraki cell "' + cells[0] +
-            '"')
+        #print ('Warning: Failed to read date from Ibaraki cell "' + cells[0] +
+            #'"')
         return current_day, prev_ts, dest
     if m.group('day'):
         current_day = int(m.group('day'))
@@ -107,11 +107,11 @@ def get_kek(dest):
     url = 'http://rcwww.kek.jp/norm/dose.html'
     html = urllib2.urlopen(url).read()
     value = re.search(r'<b>\s*([\d.]+)', html).group(1)
-    time = re.search(r'\((?P<mon>\d{1,2})/(?P<day>\d{1,2}) '
+    time = re.search(r'\((?P<year>\d{4})-(?P<mon>\d{1,2})-(?P<day>\d{1,2}) '
             '(?P<hour>\d{1,2}):(?P<min>\d{1,2})', html)
-    dest.set_value(datetime.datetime(2011, int(time.group('mon')),
-        int(time.group('day')), int(time.group('hour')),
-        int(time.group('min'))), 3, float(value))
+    dest.set_value(datetime.datetime(int(time.group('year')),
+        int(time.group('mon')), int(time.group('day')),
+        int(time.group('hour')), int(time.group('min'))), 3, float(value))
     return dest
 
 
@@ -139,7 +139,8 @@ def get_aist(dest):
     # Skip the header rows
     for r in rows[2:]:
         cells = re.findall(u'<td ?(.*?>.*?)</td>', r, re.U | re.S)
-        m = re.match(u'.*?(?P<mon>\d{1,2})月(?P<day>\d{1,2})日',
+        print cells
+        m = re.match(u'.*?(?P<mon>\d{1,2})/(?P<day>\d{1,2})',
                 cells[0], re.U | re.S)
         if m:
             # Got a new day
@@ -207,7 +208,6 @@ def add_column(levels, new_data):
 
 
 def plot_data(places, dest_dir):
-    print CACHE
     p = subprocess.Popen(['gnuplot', '-p'], shell=True, stdin=subprocess.PIPE)
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
