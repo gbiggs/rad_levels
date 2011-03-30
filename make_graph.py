@@ -139,7 +139,6 @@ def get_aist(dest):
     # Skip the header rows
     for r in rows[2:]:
         cells = re.findall(u'<td ?(.*?>.*?)</td>', r, re.U | re.S)
-        print cells
         m = re.match(u'.*?(?P<mon>\d{1,2})/(?P<day>\d{1,2})',
                 cells[0], re.U | re.S)
         if m:
