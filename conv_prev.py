@@ -2,35 +2,26 @@
 
 import datetime
 
+import cache
+
 
 f = open('previous.txt', 'r')
 lines = f.readlines()[2:]
 f.close()
 
-f = open('output.txt', 'w')
+dest = cache.load_cache('fukushima.dat')
 for l in lines:
     cells = l.rstrip().split('\t')
-    date = datetime.datetime.strptime(cells[1], '%m/%d/%Y %H:%M:%S')
+    ts = datetime.datetime.strptime(cells[1], '%m/%d/%Y %H:%M:%S')
     cells = cells[3:]
-    data_str = '%04d/%02d/%02d-%02d:%02d\t' % (date.year, date.month, date.day,
-            date.hour, date.minute)
-    print cells
-    for c in cells[:7]:
+    for ii, c in enumerate(cells[:7]):
         try:
-            float(c)
+            float(c.strip())
         except ValueError:
-            data_str += '-\t'
             continue
+        dest.set_value(ts, ii, c.strip())
         data_str += c + '\t'
-    if len(cells) < 7:
-        for ii in range(len(cells), 7):
-            data_str += '-\t'
-    data_str += '-\t'
     if len(cells) >= 8:
-        data_str += cells[7]
-    else:
-        data_str += '-'
-    data_str += '\t-\t-\t-\t-\n'
-    f.write(data_str)
-f.close()
+        dest.set_value(ts, 7, cells[7].strip())
+cache.save_cache(dest, 'fukushima.dat')
 
