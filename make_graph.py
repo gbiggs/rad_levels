@@ -28,14 +28,20 @@ def process_cells(cells, dest, current_day, prev_ts):
         #print ('Warning: Failed to read date from Ibaraki cell "' + cells[0] +
             #'"')
         return current_day, prev_ts, dest
+    month = prev_ts.month
     if m.group('day'):
-        current_day = int(m.group('day'))
-    day = current_day
-    ts = datetime.datetime(2011, 3, day, int(m.group('hour')), int(m.group('min')))
-    if ts < prev_ts:
+        new_day = int(m.group('day'))
+        if new_day < current_day:
+            month += 1
+        day = new_day
+    else:
+        day = current_day
+    ts = datetime.datetime(2011, month, day, int(m.group('hour')), int(m.group('min')))
+    if ts.time() < prev_ts.time() and ts.date() == prev_ts.date():
         # Someone forgot to increment the day at midnight
         ts = ts.replace(day=ts.day + 1)
-        current_day += 1
+        day += 1
+    print ts
     for ii, c in enumerate(cells[1:]):
         try:
             val = float(c)
@@ -43,7 +49,7 @@ def process_cells(cells, dest, current_day, prev_ts):
             # No data
             continue
         dest.set_value(ts, ii, val)
-    return current_day, ts, dest
+    return day, ts, dest
 
 
 def get_latest_update():
@@ -57,7 +63,7 @@ def get_latest_update():
 def get_levels(url_suffix, dest):
     num_places = 0
     current_day = None
-    prev_ts = datetime.datetime(2000, 1, 1)
+    prev_ts = datetime.datetime(2000, 3, 1)
     url = 'http://www.pref.ibaraki.jp/important/20110311eq/' + url_suffix
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     # Get the tables dealing with Ibaraki
