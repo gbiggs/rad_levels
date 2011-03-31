@@ -98,7 +98,7 @@ class TimeSeries(object):
             ind = None
         else:
             ind = self.ts_index(timestamp)
-        if not ind:
+        if ind == None:
             self._dps.append(DataPoint(timestamp, []))
             self._dps[-1][col] = value
             self._dps[-1].ensure_length(self._col_count)

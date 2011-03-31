@@ -55,38 +55,35 @@ def update_data():
     raw = unicode(f.read(), 'utf-8')
     f.close()
 
-    pre_line = re.search(r'\d{3}\s\d{1,2}:\d{1,2}', raw)
-    data_lines = [l.strip() for l in raw[pre_line.start():].split('\n')[1:3]]
+    start_line = re.search(r'\d{3}\s\d{1,2}:\d{1,2}', raw)
+    end_line = re.search(r'\d+km', raw[start_line.end():])
+
+    raw = raw[start_line.end():end_line.start() + start_line.end()]
+
+    date = re.search(r'^(?P<mon>\d)(?P<day>\d{1,2})', raw, re.M)
+    ts = re.search(r'^\s?(?P<hour>\d{1,2}):(?P<min>\d{2})', raw, re.M)
+    raw = raw[ts.end():].strip()
 
     data = cache.load_cache(CACHE)
-
-    month = data_lines[0][0]
-    day = data_lines[0][1:3]
-    data_lines[0] = data_lines[0][4:]
-    for l in data_lines:
-        cells = [m[0] \
-                for m in re.findall(r'(\d{1,2}(:|.)\d{1,2})? ?', l)]
-        if len(cells) > 14:
-            # Hack because we can't use a variable-length lookbehind asssertion
-            # in the regex, so we almost always get an empty extra cell
-            cells = cells[:14]
-        while len(cells) < 14:
-            cells.append('')
-        ts = cells[0].split(':')
-        ts = datetime.datetime(2011, int(month), int(day), int(ts[0]),
-                int(ts[1]))
-        for ii, c in enumerate(cells[1:]):
-            if c.strip() == '':
-                continue
-            try:
-                float(c.strip())
-            except ValueError:
-                continue
-            data.set_value(ts, ii, c.strip())
-    print 'saving cache'
-    print CACHE
-    cache.save_cache(CACHE)
-    print 'saved cache'
+    ts = datetime.datetime(2011, int(date.group('mon')),
+            int(date.group('day')), int(ts.group('hour')),
+            int(ts.group('min')))
+    cells = [m[0] for m in re.findall(r'((\d{1,2}.\d{1,2})|-)? ?', raw)]
+    if len(cells) > 12:
+        # Hack because we can't use a variable-length lookbehind asssertion
+        # in the regex, so we almost always get an empty extra cell
+        cells = cells[:12]
+    while len(cells) < 12:
+        cells.append('')
+    for ii, c in enumerate(cells):
+        if c.strip() == '':
+            continue
+        try:
+            float(c.strip())
+        except ValueError:
+            continue
+        data.set_value(ts, ii, c.strip())
+    cache.save_cache(data, CACHE)
 
 
 def plot_data(places, dest_dir):
@@ -94,19 +91,19 @@ def plot_data(places, dest_dir):
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
             (os.path.join(dest_dir, 'fukushima_levels.png',)))
-    p.stdin.write('set xlabel "Time (Day Hour:Minute)"\n')
+    p.stdin.write('set xlabel "Month/Day"\n')
     p.stdin.write('set timefmt "%Y/%m/%d-%H:%M"\n')
     p.stdin.write('set xdata time\n')
     p.stdin.write('set xrange ["2011/03/15-21:00":]\n')
-    p.stdin.write('set format x "%d %H:%M"\n')
-    p.stdin.write('set xtics 43200\n')
+    p.stdin.write('set format x "%m/%d"\n')
+    p.stdin.write('set xtics 86400\n')
     p.stdin.write('set ylabel "Microsievert/hour"\n')
     p.stdin.write('set title "Radiation levels in Fukushima Prefecture (Updated '
             'at %s)"\n' % (time.strftime('%Y/%m/%d %H:%M ' + time.tzname[0],
                 time.localtime()),))
     plot_cmd = 'plot '
     for ii, place in enumerate(places):
-        plot_cmd += '"fukushima.dat" u 1:%d title "%s" w l, ' % (ii + 2, place)
+        plot_cmd += '"%s" u 1:%d title "%s" w l, ' % (CACHE, ii + 2, place)
     plot_cmd = plot_cmd[:-2] + '\n'
     p.stdin.write(plot_cmd)
     p.stdin.write('set logscale y\n')
@@ -136,7 +133,7 @@ def main(argv):
     previous_url = get_previous_url()
     if latest_url != previous_url:
         get_latest_pdf(latest_url)
-        write_previous_url(latest_url)
+        #write_previous_url(latest_url)
         update_data()
 
     places = ['Fukushima City', 'Koriyama City', 'Shirakawa City',

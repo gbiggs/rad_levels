@@ -41,7 +41,6 @@ def process_cells(cells, dest, current_day, prev_ts):
         # Someone forgot to increment the day at midnight
         ts = ts.replace(day=ts.day + 1)
         day += 1
-    print ts
     for ii, c in enumerate(cells[1:]):
         try:
             val = float(c)
