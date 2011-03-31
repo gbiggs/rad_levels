@@ -3,10 +3,7 @@
 
 import datetime
 import os.path
-import pdfminer.pdfinterp
-import pdfminer.converter
 import re
-import StringIO
 import subprocess
 import sys
 import time
@@ -15,9 +12,9 @@ import urllib2
 import cache
 
 
+CACHE='fukushima.dat'
 LATEST_PDF='fukushima_latest.pdf'
 LATEST_TXT='fukushima_latest.txt'
-CACHE='fukushima.dat'
 
 
 def get_latest_update():
@@ -49,28 +46,23 @@ def get_latest_pdf(url):
     f = open(LATEST_PDF, 'wb')
     f.write(pdf)
     f.close()
-    p = subprocess.Popen(['pdf2txt.py', '-o', LATEST_TXT, LATEST_PDF])
+    p = subprocess.Popen(['pdftotext', '-layout', '-raw', LATEST_PDF, LATEST_TXT])
     p.communicate()
 
 
 def update_data():
-    data = cache.load_cache(CACHE)
-
     f = open(LATEST_TXT, 'r')
     raw = unicode(f.read(), 'utf-8')
     f.close()
-    print raw
 
-    data = re.search(u'(?P<mon>\\d{1,2})月(?P<day>\\d{1,2})日\\s*（\\w）\\s*(\\d{1,2}:\\d{1,2})?\\s*(?P<hour>\\d{1,2}):(?P<min>\\d{1,2})\s*(?P<cells>.*?)測定装置',
-            raw, re.S | re.U)
-    print data.groups()
+    pre_line = re.search(r'\d{3}\s\d{1,2}:\d{1,2}', raw)
     data_lines = [l.strip() for l in raw[pre_line.start():].split('\n')[1:3]]
-    print 'data_lines', data_lines
+
+    data = cache.load_cache(CACHE)
 
     month = data_lines[0][0]
     day = data_lines[0][1:3]
     data_lines[0] = data_lines[0][4:]
-
     for l in data_lines:
         cells = [m[0] \
                 for m in re.findall(r'(\d{1,2}(:|.)\d{1,2})? ?', l)]
@@ -81,19 +73,20 @@ def update_data():
         while len(cells) < 14:
             cells.append('')
         ts = cells[0].split(':')
-        this_time = datetime.datetime(2011, int(month), int(day), int(ts[0]),
+        ts = datetime.datetime(2011, int(month), int(day), int(ts[0]),
                 int(ts[1]))
         for ii, c in enumerate(cells[1:]):
             if c.strip() == '':
-                data_str += '-\t'
                 continue
             try:
                 float(c.strip())
             except ValueError:
-                data_str += '-\t'
                 continue
-            data.set_value(this_time, ii, c.strip())
-    cache.save_cache(data, CACHE)
+            data.set_value(ts, ii, c.strip())
+    print 'saving cache'
+    print CACHE
+    cache.save_cache(CACHE)
+    print 'saved cache'
 
 
 def plot_data(places, dest_dir):
@@ -143,7 +136,7 @@ def main(argv):
     previous_url = get_previous_url()
     if latest_url != previous_url:
         get_latest_pdf(latest_url)
-        #write_previous_url(latest_url)
+        write_previous_url(latest_url)
         update_data()
 
     places = ['Fukushima City', 'Koriyama City', 'Shirakawa City',

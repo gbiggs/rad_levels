@@ -185,27 +185,6 @@ def get_aist(dest):
     return dest
 
 
-def add_column(levels, new_data):
-    times = new_data[0]
-    data = new_data[1]
-    ii = 0
-    levels.append([])
-    for jj, ts in enumerate(times):
-        while ii < len(levels[0]) and ts > levels[0][ii]:
-            levels[-1].append('')
-            ii += 1
-        if ts == levels[0][ii]:
-            levels[-1].insert(ii, data[jj])
-        else:
-            levels[0].insert(ii, ts)
-            for kk in range(1, len(levels) - 1):
-                levels[kk].insert(ii, '-')
-            levels[-1].insert(ii, data[jj])
-    while ii < len(levels[0]):
-        levels[-1].append('')
-        ii += 1
-
-
 def plot_data(places, dest_dir):
     p = subprocess.Popen(['gnuplot', '-p'], shell=True, stdin=subprocess.PIPE)
     p.stdin.write('set terminal png size 1024,768\n')
