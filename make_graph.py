@@ -211,11 +211,11 @@ def plot_data(places, dest_dir):
     p.stdin.write('set terminal png size 1024,768\n')
     p.stdin.write('set output "%s"\n' %
             (os.path.join(dest_dir, 'ibaraki_levels.png',)))
-    p.stdin.write('set xlabel "Day"\n')
+    p.stdin.write('set xlabel "Month/Day"\n')
     p.stdin.write('set timefmt "%Y/%m/%d-%H:%M"\n')
     p.stdin.write('set xdata time\n')
     p.stdin.write('set xrange ["2011/03/14-12:00":]\n')
-    p.stdin.write('set format x "%d"\n')
+    p.stdin.write('set format x "%m/%d"\n')
     p.stdin.write('set xtics 86400\n')
     p.stdin.write('set ylabel "Microsievert/hour"\n')
     p.stdin.write('set title "Radiation levels in Ibaraki Prefecture (Updated '
