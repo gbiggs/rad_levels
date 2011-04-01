@@ -133,7 +133,7 @@ def main(argv):
     previous_url = get_previous_url()
     if latest_url != previous_url:
         get_latest_pdf(latest_url)
-        #write_previous_url(latest_url)
+        write_previous_url(latest_url)
         update_data()
 
     places = ['Fukushima City', 'Koriyama City', 'Shirakawa City',
