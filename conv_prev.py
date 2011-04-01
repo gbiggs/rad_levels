@@ -23,6 +23,6 @@ for l in lines:
             continue
         dest.set_value(ts, ii, c.strip())
     if len(cells) >= 8:
-        dest.set_value(ts, 7, cells[7].strip())
+        dest.set_value(ts, 8, cells[7].strip())
 cache.save_cache(dest, 'fukushima.dat')
 
