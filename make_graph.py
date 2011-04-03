@@ -252,7 +252,7 @@ def main(argv):
     except:
         traceback.print_exc()
     cache.save_cache(data, CACHE)
-    #plot_data(places, dest_dir)
+    plot_data(places, dest_dir)
 
 
 if __name__ == '__main__':
