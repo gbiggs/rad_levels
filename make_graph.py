@@ -61,8 +61,8 @@ def get_latest_update():
 
 def get_levels(url_suffix, dest):
     num_places = 0
-    current_day = None
-    prev_ts = datetime.datetime(2000, 3, 1)
+    current_day = 1
+    prev_ts = datetime.datetime(2011, 4, 1)
     url = 'http://www.pref.ibaraki.jp/important/20110311eq/' + url_suffix
     html = unicode(urllib2.urlopen(url).read(), 'shift-jis')
     # Get the tables dealing with Ibaraki
@@ -252,7 +252,7 @@ def main(argv):
     except:
         traceback.print_exc()
     cache.save_cache(data, CACHE)
-    plot_data(places, dest_dir)
+    #plot_data(places, dest_dir)
 
 
 if __name__ == '__main__':
