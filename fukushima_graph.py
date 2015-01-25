@@ -70,7 +70,7 @@ def update_data():
             int(ts.group('min')))
     cells = [m[0] for m in re.findall(r'((\d{1,2}.\d{1,2})|-)? ?', raw)]
     if len(cells) > 12:
-        # Hack because we can't use a variable-length lookbehind asssertion
+        # Hack because we can't use a variable-length lookbehind assertion
         # in the regex, so we almost always get an empty extra cell
         cells = cells[:12]
     while len(cells) < 12:
